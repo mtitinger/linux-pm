@@ -84,7 +84,7 @@ static void r8a7779_init_pm_domain(struct r8a7779_pm_domain *r8a7779_pd)
 	struct generic_pm_domain *genpd = &r8a7779_pd->genpd;
 
 	genpd->flags = GENPD_FLAG_PM_CLK;
-	pm_genpd_init(genpd, NULL, false);
+	pm_genpd_init(genpd, NULL, NULL, 0, false);
 	genpd->dev_ops.active_wakeup = pd_active_wakeup;
 	genpd->power_off = pd_power_down;
 	genpd->power_on = pd_power_up;
