@@ -72,7 +72,7 @@ int __init ux500_pm_domains_init(void)
 	genpd_data->num_domains = ARRAY_SIZE(ux500_pm_domains);
 
 	for (i = 0; i < ARRAY_SIZE(ux500_pm_domains); ++i)
-		pm_genpd_init(ux500_pm_domains[i], NULL, false);
+		pm_genpd_init(ux500_pm_domains[i], NULL, NULL, 0, false);
 
 	of_genpd_add_provider_onecell(np, genpd_data);
 	return 0;

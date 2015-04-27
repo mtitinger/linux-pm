@@ -419,7 +419,7 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
 		return 0;
 
-	pm_genpd_init(&imx6q_pu_domain.base, NULL, false);
+	pm_genpd_init(&imx6q_pu_domain.base, NULL, NULL, 0, false);
 	return of_genpd_add_provider_onecell(dev->of_node,
 					     &imx_gpc_onecell_data);
 

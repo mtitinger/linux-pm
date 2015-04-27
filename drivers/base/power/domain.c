@@ -1916,10 +1916,14 @@ int pm_genpd_add_pstates(struct generic_pm_domain *genpd,
  * pm_genpd_init - Initialize a generic I/O PM domain object.
  * @genpd: PM domain object to initialize.
  * @gov: PM domain governor to associate with the domain (may be NULL).
+ * @states: Array of possible low power states when powering off.
+ * @state_count: Number of low power states.
  * @is_off: Initial value of the domain's power_is_off field.
  */
 void pm_genpd_init(struct generic_pm_domain *genpd,
-		   struct dev_power_governor *gov, bool is_off)
+		   struct dev_power_governor *gov,
+		   const struct genpd_power_state *states,
+		   unsigned int state_count, bool is_off)
 {
 	if (IS_ERR_OR_NULL(genpd))
 		return;
