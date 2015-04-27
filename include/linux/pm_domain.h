@@ -45,6 +45,12 @@ struct gpd_cpuidle_data {
 	struct cpuidle_state *idle_state;
 };
 
+struct genpd_power_state {
+	char *name;
+	s64 power_off_latency_ns;
+	s64 power_on_latency_ns;
+};
+
 struct generic_pm_domain {
 	struct dev_pm_domain domain;	/* PM domain operations */
 	struct list_head gpd_list_node;	/* Node in the global PM domains list */
@@ -151,7 +157,9 @@ extern int pm_genpd_name_attach_cpuidle(const char *name, int state);
 extern int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd);
 extern int pm_genpd_name_detach_cpuidle(const char *name);
 extern void pm_genpd_init(struct generic_pm_domain *genpd,
-			  struct dev_power_governor *gov, bool is_off);
+			  struct dev_power_governor *gov,
+			  const struct genpd_power_state *states,
+			  unsigned int state_count, bool is_off);
 
 extern int pm_genpd_poweron(struct generic_pm_domain *genpd);
 extern int pm_genpd_name_poweron(const char *domain_name);
@@ -218,7 +226,9 @@ static inline int pm_genpd_name_detach_cpuidle(const char *name)
 	return -ENOSYS;
 }
 static inline void pm_genpd_init(struct generic_pm_domain *genpd,
-				 struct dev_power_governor *gov, bool is_off)
+				 struct dev_power_governor *gov,
+				 const struct genpd_power_state *states,
+				 unsigned int state_count, bool is_off)
 {
 }
 static inline int pm_genpd_poweron(struct generic_pm_domain *genpd)
