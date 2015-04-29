@@ -45,9 +45,11 @@
 
 struct pu_domain {
 	struct generic_pm_domain base;
+	struct genpd_power_state *states;
 	struct regulator *reg;
 	struct clk *clk[GPC_CLK_MAX];
 	int num_clks;
+	unsigned int num_states;
 };
 
 static void __iomem *gpc_base;
@@ -369,14 +371,22 @@ static struct generic_pm_domain imx6q_arm_domain = {
 	.name = "ARM",
 };
 
+static struct genpd_power_state imx6q_arm_domain_states[] = {
+	{
+		.name = "OFF",
+		.power_off_latency_ns = 25000,
+		.power_on_latency_ns = 2000000,
+	},
+};
+
 static struct pu_domain imx6q_pu_domain = {
 	.base = {
 		.name = "PU",
 		.power_off = imx6q_pm_pu_power_off,
 		.power_on = imx6q_pm_pu_power_on,
-		.power_off_latency_ns = 25000,
-		.power_on_latency_ns = 2000000,
 	},
+	.states = imx6q_arm_domain_states,
+	.num_states = ARRAY_SIZE(imx6q_arm_domain_states),
 };
 
 static struct generic_pm_domain imx6sl_display_domain = {
@@ -419,7 +429,8 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
 		return 0;
 
-	pm_genpd_init(&imx6q_pu_domain.base, NULL, NULL, 0, false);
+	pm_genpd_init(&imx6q_pu_domain.base, NULL, imx6q_pu_domain.states,
+		      imx6q_pu_domain.num_states, false);
 	return of_genpd_add_provider_onecell(dev->of_node,
 					     &imx_gpc_onecell_data);
 
