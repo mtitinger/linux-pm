@@ -30,8 +30,8 @@ static inline int arm_cpuidle_simple_enter(struct cpuidle_device *dev,
 struct device_node;
 
 struct cpuidle_ops {
-	int (*suspend)(int cpu, unsigned long arg);
-	int (*init)(struct device_node *, int cpu);
+	int (*suspend)(unsigned long arg);
+	int (*init)(unsigned int cpu);
 };
 
 struct of_cpuidle_method {
@@ -46,6 +46,6 @@ struct of_cpuidle_method {
 
 extern int arm_cpuidle_suspend(int index);
 
-extern int arm_cpuidle_init(int cpu);
+extern int arm_cpuidle_init(unsigned int cpu);
 
 #endif
