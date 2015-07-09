@@ -91,6 +91,7 @@ obj-$(CONFIG_ARM_VIRT_EXT)	+= hyp-stub.o
 ifeq ($(CONFIG_ARM_PSCI),y)
 obj-y				+= psci-call.o
 obj-$(CONFIG_SMP)		+= psci_smp.o
+obj-$(CONFIG_CPU_IDLE)		+= psci_cpuidle.o
 endif
 
 extra-y := $(head-y) vmlinux.lds
