@@ -1,0 +1,23 @@
+ARM CPU Power domains
+
+The device tree allows describing of CPU power domains in a SoC. In ARM SoC,
+CPUs may be grouped as clusters. A cluster may have CPUs, GIC, Coresight,
+caches, VFP and power controller and other peripheral hardware. Generally,
+when the CPUs in the cluster are idle/suspended, the shared resources may also
+be suspended and resumed before any of the CPUs resume execution.
+
+CPUs are the defined as the PM domain consumers and there is a PM domain
+provider for the CPUs. Bindings for generic PM domains (genpd) is described in
+[1].
+
+The ARM CPU PM domain follows the same binding convention as any generic PM
+domain. Additional binding properties are -
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: Must also have
+			"arm,pd"
+		inorder to initialize the genpd provider as ARM CPU PM domain.
+
+[1]. Documentation/devicetree/bindings/power/power_domain.txt

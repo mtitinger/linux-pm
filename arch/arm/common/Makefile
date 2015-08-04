@@ -18,3 +18,4 @@ AFLAGS_vlock.o			:= -march=armv7-a
 obj-$(CONFIG_TI_PRIV_EDMA)	+= edma.o
 obj-$(CONFIG_BL_SWITCHER)	+= bL_switcher.o
 obj-$(CONFIG_BL_SWITCHER_DUMMY_IF) += bL_switcher_dummy_if.o
+obj-$(CONFIG_PM_GENERIC_DOMAINS) += domains.o

@@ -1,0 +1,49 @@
+CPU Clusters and PM domain
+
+Newer ARM CPUs are grouped in a SoC as clusters. A cluster in addition to the
+CPUs may have caches, GIC, VFP and architecture specific power controller to
+power the cluster. A cluster may also be nested in another cluster, the
+hierarchy of which is depicted in the device tree. CPUIdle frameworks enables
+the CPUs to determine the sleep time and enter low power state to save power
+during periods of idle. CPUs in a cluster may enter and exit idle state
+independently. During the time when all the CPUs are in idle state, the
+cluster can safely be in idle state as well. When the last of the CPUs is
+powered off as a result of idle, the cluster may also be powered down, but the
+domain must be powered on before the first of the CPUs in the cluster resumes
+execution.
+
+ARM SoCs can power down the CPU and resume execution in a few uSecs and the
+domain that powers the CPU cluster also have comparable idle latencies. The
+ARM CPU WFI signal is used as a hardware trigger for the cluster hardware to
+enter their idle state. The hardware can be programmed in advance to put the
+cluster in the desired idle state befitting the wakeup latency requested by
+the CPUs. When all the CPUs in a cluster have executed their WFI instruction,
+the state machine for the power controller may put the cluster components in
+their power down or idle state. Generally, the domains would power on with the
+hardware sensing the CPU's interrupts. The domains may however, need to be
+reconfigured by the CPU to remain active, until the last CPU is ready to enter
+idle again. To power down a cluster, it is generally required to power down
+all the CPUs. The caches would also need to be flushed. The hardware state of
+some of the components may need to be saved and restored when powered back on.
+SoC vendors may also have hardware specific configuration that must be done
+before the cluster can be powered off. When the cluster is powered off,
+notifications may be sent out to other SoC components to scale down or even
+power off their resources.
+
+Power management domains represent relationship of devices and their power
+controllers. They are represented in the DT as domain consumers and providers.
+A device may have a domain provider and a domain provider may support multiple
+domain consumers. Domains like clusters, may also be nested inside one
+another. A domain that has no active consumer, may be powered off and any
+resuming consumer would trigger the domain back to active. Parent domains may
+be powered off when the child domains are powered off. ARM CPU cluster can be
+fashioned as a PM domain. When the CPU devices are powered off, the PM domain
+may be powered off.
+
+The code in Generic PM domains handles the hierarchy of devices, domains and
+the reference counting of objects leading to last man down and first man up.
+The ARM CPU domains common code defines PM domains for each CPU cluster and
+attaches the domains' CPU devices to as specified in the DT. This happens
+automatically at kernel init, when the domain is specified as compatible with
+"arm,pd". Powering on/off the common cluster hardware would also be done when
+the PM domain is runtime suspended or resumed.
