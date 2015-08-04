@@ -26,6 +26,7 @@
 #include <linux/completion.h>
 #include <linux/cpufreq.h>
 #include <linux/irq_work.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/atomic.h>
 #include <asm/smp.h>
@@ -135,7 +136,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
 	}
 
-
 	memset(&secondary_data, 0, sizeof(secondary_data));
 	return ret;
 }
@@ -189,6 +189,9 @@ int __cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 	int ret;
+
+	/* We dont need the CPU device anymore. */
+	pm_runtime_put_sync(get_cpu_device(cpu));
 
 	ret = platform_cpu_disable(cpu);
 	if (ret)
@@ -256,6 +259,13 @@ void __cpu_die(unsigned int cpu)
 void __ref cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
+
+	/*
+	 * We dont need the CPU device anymore.
+	 * Lets do this before IRQs are disabled to allow
+	 * runtime PM to suspend the domain as well.
+	 */
+	pm_runtime_put_sync(get_cpu_device(cpu));
 
 	idle_task_exit();
 
@@ -337,6 +347,7 @@ asmlinkage void secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu;
+	struct device *cpu_dev;
 
 	/*
 	 * The identity mapping is uncached (strongly ordered), so
@@ -385,6 +396,11 @@ asmlinkage void secondary_start_kernel(void)
 
 	local_irq_enable();
 	local_fiq_enable();
+
+	/* We are running, enable runtime PM for the CPU. */
+	cpu_dev = get_cpu_device(cpu);
+	if (cpu_dev)
+		pm_runtime_get_sync(cpu_dev);
 
 	/*
 	 * OK, it's off to the idle thread for us
