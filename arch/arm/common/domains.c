@@ -18,11 +18,18 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
+#include <asm/arm-pd.h>
+
 #define NAME_MAX 36
 
 struct arm_pm_domain {
 	struct generic_pm_domain genpd;
+	struct of_arm_pd_ops platform_ops;
 };
+
+extern struct of_arm_pd_method __arm_pd_method_of_table[];
+static const struct of_arm_pd_method __arm_pd_method_of_table_sentinel
+	__used __section(__arm_pd_method_of_table_end);
 
 static inline
 struct arm_pm_domain *to_arm_pd(struct generic_pm_domain *d)
@@ -32,19 +39,29 @@ struct arm_pm_domain *to_arm_pd(struct generic_pm_domain *d)
 
 static int arm_pd_power_down(struct generic_pm_domain *genpd)
 {
+	struct arm_pm_domain *pd = to_arm_pd(genpd);
+
 	/*
 	 * Notify CPU PM domain power down
 	 * TODO: Call the notificated directly from here.
 	 */
 	cpu_cluster_pm_enter();
 
+	if (pd->platform_ops.power_off)
+		return pd->platform_ops.power_off(genpd);
+
 	return 0;
 }
 
 static int arm_pd_power_up(struct generic_pm_domain *genpd)
 {
+	struct arm_pm_domain *pd = to_arm_pd(genpd);
+
 	/* Notify CPU PM domain power up */
 	cpu_cluster_pm_exit();
+
+	if (pd->platform_ops.power_on)
+		return pd->platform_ops.power_on(genpd);
 
 	return 0;
 }
@@ -134,6 +151,7 @@ static int __init arm_domain_init(void)
 {
 	struct device_node *np;
 	int count = 0;
+	struct of_arm_pd_method *m = __arm_pd_method_of_table;
 
 	for_each_compatible_node(np, NULL, "arm,pd") {
 		struct arm_pm_domain *pd;
@@ -145,6 +163,25 @@ static int __init arm_domain_init(void)
 		if (!pd)
 			return -ENOMEM;
 
+		/* Invoke platform initialization for the PM domain */
+		for (; m->handle; m++) {
+			int ret;
+
+			if (of_device_is_compatible(np, m->handle)) {
+				ret = m->ops->init(np, &pd->genpd);
+				if (!ret) {
+					pr_debug("CPU PD ops found for %s\n",
+							m->handle);
+					pd->platform_ops.power_on =
+						m->ops->power_on;
+					pd->platform_ops.power_off =
+						m->ops->power_off;
+				}
+				break;
+			}
+		}
+
+		/* Initialize rest of CPU PM domain specifics */
 		pd->genpd.name = kstrndup(np->name, NAME_MAX, GFP_KERNEL);
 		pd->genpd.power_off = arm_pd_power_down;
 		pd->genpd.power_on = arm_pd_power_up;

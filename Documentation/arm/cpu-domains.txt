@@ -47,3 +47,29 @@ attaches the domains' CPU devices to as specified in the DT. This happens
 automatically at kernel init, when the domain is specified as compatible with
 "arm,pd". Powering on/off the common cluster hardware would also be done when
 the PM domain is runtime suspended or resumed.
+
+SoCs may have additional configuration for the CPU PM domain. The ARM code
+provides a way for the platform driver to add those properties to the genpd
+before the genpd object is initialized. Additionally, platform driver may also
+register for CPU domain power_on/power_off callbacks.
+
+Platform drivers may register the callbacks using the __init section macro
+ARM_PD_METHOD_OF_DECLARE. The callbacks in of_arm_pd_ops, can be specified
+against a compatible flag for the domain provider.
+
+Callback for platform drivers -
+
+int (*init)(struct device_node *dn, struct generic_pm_domain *d)
+The init() callback is called before the generic PM domain is registered with
+the GenPD framework. The device node is provided to identify the domain that
+is being initialized. The init function must return 0, in order for the
+power_on and power_off callbacks to be registered with the CPU PD framework.
+
+int (*power_on)(struct generic_pm_domain *d);
+The power_on() callback is called when the first CPU in the cluster is ready
+to resume execution. The domain may be considered active at this point.
+
+int (*power_off)(struct generic_pm_domain *d);
+The power_off() callback is called when the last CPU in the cluster enters
+idle. The domain may be configured to power off and wait for a CPU's wakeup
+interrupt.
