@@ -34,8 +34,14 @@ static struct {
 #define PSTR_OFFS 0x40
 #define CPUNCR_OFFS(n) (0x100 + (0x10 * (n)))
 
-static int __maybe_unused apmu_power_on(void __iomem *p, int bit)
+int __maybe_unused apmu_power_on(unsigned int cpu)
 {
+	void __iomem *p = apmu_cpus[cpu].iomem;
+	int bit =  apmu_cpus[cpu].bit;
+
+	if (!p)
+		return -EINVAL;
+
 	/* request power on */
 	writel_relaxed(BIT(bit), p + WUPCR_OFFS);
 
@@ -46,16 +52,27 @@ static int __maybe_unused apmu_power_on(void __iomem *p, int bit)
 	return 0;
 }
 
-static int apmu_power_off(void __iomem *p, int bit)
+int apmu_power_off(unsigned int cpu)
 {
+	void __iomem *p = apmu_cpus[cpu].iomem;
+	int bit =  apmu_cpus[cpu].bit;
+
+	if (!p)
+		return -EINVAL;
+
 	/* request Core Standby for next WFI */
 	writel_relaxed(3, p + CPUNCR_OFFS(bit));
 	return 0;
 }
 
-static int __maybe_unused apmu_power_off_poll(void __iomem *p, int bit)
+int __maybe_unused apmu_power_off_poll(unsigned int cpu)
 {
+	void __iomem *p = apmu_cpus[cpu].iomem;
+	int bit =  apmu_cpus[cpu].bit;
 	int k;
+
+	if (!p)
+		return -EINVAL;
 
 	for (k = 0; k < 1000; k++) {
 		if (((readl_relaxed(p + PSTR_OFFS) >> (bit * 4)) & 0x03) == 3)
@@ -65,13 +82,6 @@ static int __maybe_unused apmu_power_off_poll(void __iomem *p, int bit)
 	}
 
 	return 0;
-}
-
-static int apmu_wrap(int cpu, int (*fn)(void __iomem *p, int cpu))
-{
-	void __iomem *p = apmu_cpus[cpu].iomem;
-
-	return p ? fn(p, apmu_cpus[cpu].bit) : -EINVAL;
 }
 
 static void apmu_init_cpu(struct resource *res, int cpu, int bit)
@@ -135,7 +145,7 @@ int shmobile_smp_apmu_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	/* For this particular CPU register boot vector */
 	shmobile_smp_hook(cpu, virt_to_phys(secondary_startup), 0);
 
-	return apmu_wrap(cpu, apmu_power_on);
+	return apmu_power_on(cpu);
 }
 #endif
 
@@ -174,7 +184,7 @@ void shmobile_smp_apmu_cpu_shutdown(unsigned int cpu)
 {
 
 	/* Select next sleep mode using the APMU */
-	apmu_wrap(cpu, apmu_power_off);
+	apmu_power_off(cpu);
 
 	/* Do ARM specific CPU shutdown */
 	cpu_enter_lowpower_a15();
@@ -211,7 +221,7 @@ void shmobile_smp_apmu_cpu_die(unsigned int cpu)
 
 int shmobile_smp_apmu_cpu_kill(unsigned int cpu)
 {
-	return apmu_wrap(cpu, apmu_power_off_poll);
+	return apmu_power_off_poll(cpu);
 }
 #endif
 

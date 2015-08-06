@@ -28,5 +28,7 @@ extern int shmobile_smp_apmu_boot_secondary(unsigned int cpu,
 					    struct task_struct *idle);
 extern void shmobile_smp_apmu_cpu_die(unsigned int cpu);
 extern int shmobile_smp_apmu_cpu_kill(unsigned int cpu);
-
+extern int apmu_power_on(unsigned int cpu);
+extern int apmu_power_off(unsigned int cpu);
+extern int apmu_power_off_poll(unsigned int cpu);
 #endif /* PLATSMP_APMU_H */
