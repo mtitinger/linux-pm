@@ -16,6 +16,15 @@
 #include <asm/assembler.h>
 #include <asm/memory.h>
 
+
+#ifdef CONFIG_MCPM
+ENTRY(shmobile_invalidate_mcpm_entry)
+       bl      v7_invalidate_l1
+       b       mcpm_entry_point
+ENDPROC(shmobile_invalidate_mcpm_entry)
+#endif
+
+
 /*
  * Reset vector for secondary CPUs.
  * This will be mapped at address 0 by SBAR register.

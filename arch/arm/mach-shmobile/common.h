@@ -22,6 +22,12 @@ struct clk;
 extern int shmobile_clk_init(void);
 extern struct platform_suspend_ops shmobile_suspend_ops;
 
+#if defined(CONFIG_SHMOBILE_MCPM)
+bool shmobile_mcpm_probed(void);
+#else
+static inline bool shmobile_mcpm_probed(void) { return false; }
+#endif
+
 #ifdef CONFIG_SUSPEND
 int shmobile_suspend_init(void);
 void shmobile_smp_apmu_suspend_init(void);

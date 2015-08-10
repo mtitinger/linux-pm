@@ -28,6 +28,10 @@ void shmobile_smp_hook(unsigned int cpu, unsigned long fn, unsigned long arg)
 	shmobile_smp_fn[cpu] = fn;
 	shmobile_smp_arg[cpu] = arg;
 	flush_cache_all();
+
+        sync_cache_w(&shmobile_smp_mpidr[cpu]);
+        sync_cache_w(&shmobile_smp_fn[cpu]);
+        sync_cache_w(&shmobile_smp_arg[cpu]);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

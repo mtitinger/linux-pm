@@ -49,6 +49,7 @@ obj-$(CONFIG_CPU_FREQ)		+= cpufreq.o
 obj-$(CONFIG_PM_RCAR)		+= pm-rcar.o
 obj-$(CONFIG_PM_RMOBILE)	+= pm-rmobile.o
 obj-$(CONFIG_ARCH_RCAR_GEN2)	+= pm-rcar-gen2.o
+obj-$(CONFIG_SHMOBILE_MCPM)	+= mcpm-shmobile.o
 
 # Board objects
 ifdef CONFIG_ARCH_SHMOBILE_MULTI

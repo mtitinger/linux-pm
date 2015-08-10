@@ -89,6 +89,16 @@ config ARCH_SH73A0
 	select ARCH_RMOBILE
 	select RENESAS_INTC_IRQPIN
 
+config SHMOBILE_MCPM
+	bool "Shmobile Multi-Cluster PM support"
+	default n
+	depends on MCPM
+	select ARM_CCI400_PORT_CTRL
+	help
+	  This is needed to provide CPU and cluster power management.
+
+
+
 comment "Renesas ARM SoCs Board Type"
 
 config MACH_MARZEN
