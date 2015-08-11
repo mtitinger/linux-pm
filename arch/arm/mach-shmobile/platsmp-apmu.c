@@ -46,7 +46,7 @@ int __maybe_unused apmu_power_on(unsigned int cpu)
 	if (!p)
 		return -EINVAL;
 
-	if (pcluster != boot_pcluster) {
+	if (!shmobile_mcpm_probed() && (pcluster != boot_pcluster)) {
 		pr_err("Requested to boot cpu %d on non-boot cluster!\n", cpu);
 		return -EINVAL;
 	}
