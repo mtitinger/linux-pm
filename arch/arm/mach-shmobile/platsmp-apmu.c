@@ -28,6 +28,8 @@
 static struct {
 	void __iomem *iomem;
 	int bit;
+	unsigned int pcpu;
+	unsigned int pcluster;
 } apmu_cpus[NR_CPUS];
 
 #define WUPCR_OFFS 0x10
@@ -37,11 +39,17 @@ static struct {
 int __maybe_unused apmu_power_on(unsigned int cpu)
 {
 	void __iomem *p = apmu_cpus[cpu].iomem;
+	unsigned int pcluster = apmu_cpus[cpu].pcluster;
+	unsigned int boot_pcluster = apmu_cpus[0].pcluster;
 	int bit =  apmu_cpus[cpu].bit;
 
 	if (!p)
 		return -EINVAL;
 
+	if (pcluster != boot_pcluster) {
+		pr_err("Requested to boot cpu %d on non-boot cluster!\n", cpu);
+		return -EINVAL;
+	}
 	/* request power on */
 	writel_relaxed(BIT(bit), p + WUPCR_OFFS);
 
@@ -101,27 +109,19 @@ static void apmu_parse_cfg(void (*fn)(struct resource *res, int cpu, int bit),
 	u32 id;
 	int k;
 	int bit, index;
-	bool is_allowed;
 
 	for (k = 0; k < num; k++) {
-		/* only enable the cluster that includes the boot CPU */
-		is_allowed = false;
-		for (bit = 0; bit < ARRAY_SIZE(apmu_config[k].cpus); bit++) {
-			id = apmu_config[k].cpus[bit];
-			if (id >= 0) {
-				if (id == cpu_logical_map(0))
-					is_allowed = true;
-			}
-		}
-		if (!is_allowed)
-			continue;
-
 		for (bit = 0; bit < ARRAY_SIZE(apmu_config[k].cpus); bit++) {
 			id = apmu_config[k].cpus[bit];
 			if (id >= 0) {
 				index = get_logical_index(id);
-				if (index >= 0)
+				if (index >= 0) {
 					fn(&apmu_config[k].iomem, index, bit);
+					apmu_cpus[index].pcpu =
+						MPIDR_AFFINITY_LEVEL(id, 0);
+					apmu_cpus[index].pcluster =
+						MPIDR_AFFINITY_LEVEL(id, 1);
+				}
 			}
 		}
 	}
