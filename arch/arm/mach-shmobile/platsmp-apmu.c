@@ -50,6 +50,12 @@ int __maybe_unused apmu_power_on(unsigned int cpu)
 		pr_err("Requested to boot cpu %d on non-boot cluster!\n", cpu);
 		return -EINVAL;
 	}
+
+	if ((boot_pcluster == 1) && (pcluster != boot_pcluster)) {
+		pr_err("Cannot boot a15 when boot cluster is A7\n");
+		return -EINVAL;
+	}
+
 	/* request power on */
 	writel_relaxed(BIT(bit), p + WUPCR_OFFS);
 
