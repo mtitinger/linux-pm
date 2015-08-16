@@ -160,6 +160,7 @@ static const struct of_device_id compatible_machine_match[] = {
 	{ .compatible = "arm,vexpress,v2p-ca15_a7" },
 	{ .compatible = "samsung,exynos5420" },
 	{ .compatible = "samsung,exynos5800" },
+	{ .compatible = "renesas,r8a7790" },
 	{},
 };
 
