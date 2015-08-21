@@ -56,6 +56,9 @@ int __maybe_unused apmu_power_on(unsigned int cpu)
 		return -EINVAL;
 	}
 
+	if (((readl_relaxed(p + PSTR_OFFS) >> (bit * 4)) & 0x03) == 0)
+		return 0;
+
 	/* request power on */
 	writel_relaxed(BIT(bit), p + WUPCR_OFFS);
 
