@@ -2204,17 +2204,26 @@ static void genpd_dev_pm_sync(struct device *dev)
  *
  * Returns 0 on successfully attached PM domain or negative error code.
  */
+int genpd_dev_pm_attach_force(struct device *dev, bool replace);
 int genpd_dev_pm_attach(struct device *dev)
+{
+	return genpd_dev_pm_attach_force(dev, 0);
+}
+EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
+
+int genpd_dev_pm_attach_force(struct device *dev, bool replace)
 {
 	struct of_phandle_args pd_args;
 	struct generic_pm_domain *pd;
 	unsigned int i;
 	int ret;
 
+
 	if (!dev->of_node)
 		return -ENODEV;
 
-	if (dev->pm_domain)
+
+	if (dev->pm_domain && !replace)
 		return -EEXIST;
 
 	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
@@ -2234,6 +2243,7 @@ int genpd_dev_pm_attach(struct device *dev)
 			return -ENOENT;
 	}
 
+
 	pd = of_genpd_get_from_provider(&pd_args);
 	if (IS_ERR(pd)) {
 		dev_dbg(dev, "%s() failed to find PM domain: %ld\n",
@@ -2243,6 +2253,7 @@ int genpd_dev_pm_attach(struct device *dev)
 	}
 
 	dev_dbg(dev, "adding to PM domain %s\n", pd->name);
+
 
 	for (i = 1; i < GENPD_RETRY_MAX_MS; i <<= 1) {
 		ret = pm_genpd_add_device(pd, dev);
@@ -2266,7 +2277,8 @@ int genpd_dev_pm_attach(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
+EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_force);
+
 #endif /* CONFIG_PM_GENERIC_DOMAINS_OF */
 
 
