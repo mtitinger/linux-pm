@@ -1771,6 +1771,147 @@ static void genpd_lock_init(struct generic_pm_domain *genpd)
 	}
 }
 
+static int pm_genpd_default_set_pstate(struct device *dev, unsigned int pstate)
+{
+	int (*cb)(struct device *__dev, unsigned int state);
+	if (dev->type && dev->type->pm)
+		cb = dev->type->pm->runtime_perf;
+	else if (dev->class && dev->class->pm)
+		cb = dev->class->pm->runtime_perf;
+	else if (dev->bus && dev->bus->pm)
+		cb = dev->bus->pm->runtime_perf;
+	else
+		cb = NULL;
+
+	if (!cb && dev->driver && dev->driver->pm)
+		cb = dev->driver->pm->runtime_perf;
+
+	return cb ? cb(dev, pstate) : 0;
+}
+
+/**
+ * pm_genpd_runtime_perf - Set a pstate for a given power domain.
+ * @genpd: Domain to handle.
+ * @pstate: pstate to set.
+ */
+int pm_genpd_pstate(struct generic_pm_domain *genpd, unsigned int pstate)
+{
+	struct gpd_link *link;
+	struct pm_domain_data *pdd;
+	int ret;
+
+	/* If the domain is allready on the requested pstate, nothing to do.*/
+	if (pstate == genpd->pstate)
+		return 0;
+
+	/* mmm.. invalid pstate.*/
+	if (pstate >= genpd->num_pstates)
+		return -EINVAL;
+
+	/* Recursively change the pstate of parent domain
+	 * if a map exists, use it to determine what the pstate of
+	 * the parent should be.
+	 */
+	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+		unsigned int master_pstate = pstate;
+
+		if (!link->master)
+			continue;
+
+		if (link->slave->pstates_map)
+			master_pstate = link->slave->pstates_map[pstate];
+
+		pm_genpd_pstate(link->master, master_pstate);
+	}
+
+	/* Call the power domain set_pstate function if there is one */
+	if (genpd->set_pstate) {
+		ret = genpd->set_pstate(genpd, pstate);
+		if (ret) {
+			pr_err("domain unable to change pstate\n");
+			goto err;
+		}
+		genpd->pstate = pstate;
+	}
+
+	/* Call the set pstate function for all devices on the domain */
+	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
+		if (!pdd->dev)
+			continue;
+		ret = pm_genpd_default_set_pstate(pdd->dev, pstate);
+		if (ret)
+			pr_warn("Device unable to change pstate\n");
+	}
+
+	return 0;
+err:
+	return ret;
+}
+
+/**
+ * pm_genpd_runtime_perf - Set a pstate for a given device.
+ * @dev: Device to handle.
+ * @pstate: pstate to set.
+ */
+int pm_genpd_runtime_perf(struct device *dev, unsigned int pstate)
+{
+	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+
+	if (!genpd)
+		return -EINVAL;
+
+	return pm_genpd_pstate(genpd, pstate);
+}
+
+/**
+ * pm_genpd_add_pstates - Populate the pstates for a power domain.
+ * @genpd: PM domain object to initialize.
+ * @parent: Parent PM domain if there is one (may be NULL).
+ * @np: node pointer to the device tree power domain.
+ */
+int pm_genpd_add_pstates(struct generic_pm_domain *genpd,
+			 struct generic_pm_domain *parent,
+			 struct device_node *np)
+{
+	const unsigned int *of_pstates_map;
+	unsigned int of_pstates;
+	int len;
+	int i;
+
+	of_property_read_u32(np, "pstates", &of_pstates);
+	of_pstates_map = of_get_property(np, "pstate-map", &len);
+
+	genpd->num_pstates = of_pstates;
+
+	/* if the parent does not have the same amount of pstates,
+	 * the child should provide a map to know what pstate the
+	 * parent should be in for each of its pstates.
+	 */
+	if (parent && (parent->num_pstates != genpd->num_pstates)) {
+		if (!of_pstates_map) {
+			pr_err("Parent power domain pstate count does not match\n");
+			return -EINVAL;
+		}
+	}
+
+	/* if a map is provided then use it. (even if the pstate count matches)*/
+	if (of_pstates_map) {
+		len /= sizeof(int);
+		if (len != genpd->num_pstates) {
+			pr_err("Incorrect pstate count for pstate-map.\n");
+			return -EINVAL;
+		}
+
+		genpd->pstates_map = kzalloc((sizeof(*genpd->pstates_map) * len),
+					GFP_KERNEL);
+		for (i = 0; i < len; i++)
+			genpd->pstates_map[i] = be32_to_cpup(&of_pstates_map[i]);
+	} else 
+		genpd->pstates_map = NULL;
+
+	return 0;
+}
+
 /**
  * pm_genpd_init - Initialize a generic I/O PM domain object.
  * @genpd: PM domain object to initialize.
@@ -1797,6 +1938,7 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->max_off_time_changed = true;
 	genpd->domain.ops.runtime_suspend = pm_genpd_runtime_suspend;
 	genpd->domain.ops.runtime_resume = pm_genpd_runtime_resume;
+	genpd->domain.ops.runtime_perf = pm_genpd_runtime_perf;
 	genpd->domain.ops.prepare = pm_genpd_prepare;
 	genpd->domain.ops.suspend = pm_genpd_suspend;
 	genpd->domain.ops.suspend_late = pm_genpd_suspend_late;
@@ -2183,7 +2325,8 @@ static int pm_genpd_summary_one(struct seq_file *s,
 
 	if (WARN_ON(genpd->status >= ARRAY_SIZE(status_lookup)))
 		goto exit;
-	seq_printf(s, "%-30s  %-15s  ", genpd->name, status_lookup[genpd->status]);
+	seq_printf(s, "%-30s  %-7s  %-7d", genpd->name,
+		status_lookup[genpd->status], genpd->pstate);
 
 	/*
 	 * Modifications on the list require holding locks on both
@@ -2219,9 +2362,9 @@ static int pm_genpd_summary_show(struct seq_file *s, void *data)
 	struct generic_pm_domain *genpd;
 	int ret = 0;
 
-	seq_puts(s, "    domain                      status         slaves\n");
+	seq_puts(s, "    domain                      status pstate     slaves\n");
 	seq_puts(s, "           /device                                      runtime status\n");
-	seq_puts(s, "----------------------------------------------------------------------\n");
+	seq_puts(s, "-----------------------------------------------------------------------------------\n");
 
 	ret = mutex_lock_interruptible(&gpd_list_lock);
 	if (ret)

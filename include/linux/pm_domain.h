@@ -65,6 +65,7 @@ struct generic_pm_domain {
 	s64 power_off_latency_ns;
 	int (*power_on)(struct generic_pm_domain *domain);
 	s64 power_on_latency_ns;
+	int (*set_pstate)(struct generic_pm_domain *domain, unsigned int pstate);
 	struct gpd_dev_ops dev_ops;
 	s64 max_off_time_ns;	/* Maximum allowed "suspended" time. */
 	bool max_off_time_changed;
@@ -83,6 +84,9 @@ struct generic_pm_domain {
 			unsigned long lock_flags;
 		};
 	};
+	unsigned int pstate;
+	unsigned int num_pstates;
+	unsigned int *pstates_map;
 };
 
 static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)
