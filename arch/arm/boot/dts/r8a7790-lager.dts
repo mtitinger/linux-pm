@@ -1,3 +1,4 @@
+
 /*
  * Device Tree Source for the Lager board
  *
@@ -45,6 +46,58 @@
 / {
 	model = "Lager";
 	compatible = "renesas,lager", "renesas,r8a7790";
+
+
+	pm-domains {
+		compatible = "fake,fake-pmdomain";
+		pd_a1: a1 {
+			#power-domain-cells = <0>;
+			pstates = <3>;
+
+			pd_a2: a2@0 {
+				#power-domain-cells = <0>;
+				pstates = <6>;
+				pstate-map = <0 1 4>;
+				pd_a4: a4@0 {
+					#power-domain-cells = <0>;
+					pstates = <3>;
+					pstate-map = <0 0 1 1 2 2>;
+				};
+
+			};
+
+			pd_a3: a3@1 {
+				#power-domain-cells = <0>;
+				pstates = <3>;
+			};
+		};
+
+		pd_b1: b1 {
+			#power-domain-cells = <0>;
+			pd_b2: b2@0 {
+				#power-domain-cells = <0>;
+			};
+
+			pd_b3: b3@1 {
+				#power-domain-cells = <0>;
+			};
+		};
+
+	};
+
+	D1 {
+		compatible = "fake,fake-driver";
+		name = "D1";
+		constraint = <30000>;
+		power-domains = <&pd_a4>;
+	};
+	D2 {
+		compatible = "fake,fake-driver";
+		name = "D2";
+		constraint = <30000>;
+		power-domains = <&pd_a3>;
+
+	};
 
 	aliases {
 		serial0 = &scifa0;
