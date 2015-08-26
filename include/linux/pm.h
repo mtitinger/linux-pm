@@ -316,6 +316,8 @@ struct dev_pm_ops {
 	int (*runtime_suspend)(struct device *dev);
 	int (*runtime_resume)(struct device *dev);
 	int (*runtime_idle)(struct device *dev);
+	int (*runtime_perf)(struct device *dev, unsigned int state);
+
 };
 
 #ifdef CONFIG_PM_SLEEP

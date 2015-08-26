@@ -15,6 +15,7 @@
 #include "power.h"
 
 typedef int (*pm_callback_t)(struct device *);
+typedef int (*pm_callback2_t)(struct device *, unsigned int);
 
 static pm_callback_t __rpm_get_callback(struct device *dev, size_t cb_offset)
 {
@@ -1357,6 +1358,24 @@ void __pm_runtime_use_autosuspend(struct device *dev, bool use)
 	spin_unlock_irq(&dev->power.lock);
 }
 EXPORT_SYMBOL_GPL(__pm_runtime_use_autosuspend);
+
+int pm_runtime_set_pstate(struct device *dev,
+				 unsigned int pstate)
+{
+	pm_callback2_t callback;
+	unsigned int retval;
+
+	spin_lock_irq(&dev->power.lock);
+	callback = (pm_callback2_t)RPM_GET_CALLBACK(dev, runtime_perf);
+
+	if (callback)
+		retval = callback(dev, pstate);
+
+	spin_unlock_irq(&dev->power.lock);
+
+	return retval;
+}
+EXPORT_SYMBOL_GPL(pm_runtime_set_pstate);
 
 /**
  * pm_runtime_init - Initialize runtime PM fields in given device object.
