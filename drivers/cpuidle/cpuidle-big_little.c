@@ -16,6 +16,8 @@
 #include <linux/cpu_pm.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/cpu.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/cpu.h>
 #include <asm/cputype.h>
@@ -59,6 +61,7 @@ static int bl_enter_powerdown(struct cpuidle_device *dev,
  * of L2 lines are dirty and require cleaning to DRAM, and takes into
  * account leakage static power values related to the vexpress TC2 testchip.
  */
+
 static struct cpuidle_driver bl_idle_little_driver = {
 	.name = "little_idle",
 	.owner = THIS_MODULE,
@@ -126,9 +129,14 @@ static int notrace bl_powerdown_finisher(unsigned long arg)
 static int bl_enter_powerdown(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx)
 {
+	struct device *cpu_dev = get_cpu_device(dev->cpu);
+
 	cpu_pm_enter();
+	pm_runtime_put_sync(cpu_dev);
 
 	cpu_suspend(0, bl_powerdown_finisher);
+
+	pm_runtime_get_sync(cpu_dev);
 
 	/* signals the MCPM core that CPU is out of low power state */
 	mcpm_cpu_powered_up();
