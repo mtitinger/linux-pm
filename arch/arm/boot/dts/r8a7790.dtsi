@@ -39,6 +39,28 @@
 		vin2 = &vin2;
 		vin3 = &vin3;
 	};
+	pm-domains {
+		cpu0_pd: a0@0 {
+			compatible = "arm,pd";
+			#power-domain-cells = <0>;
+		};
+
+		cpu1_pd: a1@0 {
+			compatible = "arm,pd";
+			#power-domain-cells = <0>;
+		};
+
+		cpu2_pd: a2@0 {
+			compatible = "arm,pd";
+			#power-domain-cells = <0>;
+		};
+
+		cpu3_pd: a3@0 {
+			compatible = "arm,pd";
+			#power-domain-cells = <0>;
+		};
+
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -60,6 +82,8 @@
 					   < 875000 1000000>,
 					   < 700000 1000000>,
 					   < 350000 1000000>;
+
+			power-domains = <&cpu0_pd>;
 		};
 
 		cpu1: cpu@1 {
@@ -68,6 +92,7 @@
 			reg = <1>;
 			clock-frequency = <1300000000>;
 			cci-control-port = <&cci_control1>;
+			power-domains = <&cpu1_pd>;
 		};
 
 		cpu2: cpu@2 {
@@ -76,6 +101,7 @@
 			reg = <2>;
 			clock-frequency = <1300000000>;
 			cci-control-port = <&cci_control1>;
+			power-domains = <&cpu2_pd>;
 		};
 
 		cpu3: cpu@3 {
@@ -84,6 +110,7 @@
 			reg = <3>;
 			clock-frequency = <1300000000>;
 			cci-control-port = <&cci_control1>;
+			power-domains = <&cpu3_pd>;
 		};
 
 		cpu4: cpu@4 {
