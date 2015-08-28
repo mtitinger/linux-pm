@@ -17,10 +17,13 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <asm/arm-pd.h>
 
 #define NAME_MAX 36
+
+#define DEBUG
 
 struct arm_pm_domain {
 	struct generic_pm_domain genpd;
@@ -66,10 +69,23 @@ static int arm_pd_power_up(struct generic_pm_domain *genpd)
 	return 0;
 }
 
+
+
+
+static int arm_pd_set_pstate(struct generic_pm_domain *genpd, unsigned int pstate)
+{
+	struct arm_pm_domain *pd = to_arm_pd(genpd);
+
+
+	if (pd->platform_ops.set_pstate)
+		return pd->platform_ops.set_pstate(genpd, pstate);
+
+	return 0;
+}
+
 static void __init run_cpu(void *unused)
 {
 	struct device *cpu_dev = get_cpu_device(smp_processor_id());
-
 	/* We are running, increment the usage count */
 	pm_runtime_get_noresume(cpu_dev);
 }
@@ -152,6 +168,7 @@ static int __init arm_domain_init(void)
 	struct device_node *np;
 	int count = 0;
 	struct of_arm_pd_method *m = __arm_pd_method_of_table;
+	unsigned int of_pstates;
 
 	for_each_compatible_node(np, NULL, "arm,pd") {
 		struct arm_pm_domain *pd;
@@ -163,6 +180,7 @@ static int __init arm_domain_init(void)
 		if (!pd)
 			return -ENOMEM;
 
+		printk("AXEL\n");
 		/* Invoke platform initialization for the PM domain */
 		for (; m->handle; m++) {
 			int ret;
@@ -180,12 +198,15 @@ static int __init arm_domain_init(void)
 				break;
 			}
 		}
+		of_property_read_u32(np, "pstates", &of_pstates);
 
 		/* Initialize rest of CPU PM domain specifics */
 		pd->genpd.name = kstrndup(np->name, NAME_MAX, GFP_KERNEL);
 		pd->genpd.power_off = arm_pd_power_down;
 		pd->genpd.power_on = arm_pd_power_up;
+		pd->genpd.set_pstate = arm_pd_set_pstate;
 		pd->genpd.flags |= GENPD_FLAG_IRQ_SAFE;
+		pd->genpd.num_pstates = of_pstates;
 
 		pr_debug("adding %s as generic power domain.\n", np->full_name);
 		pm_genpd_init(&pd->genpd, &simple_qos_governor, false);

@@ -1794,58 +1794,147 @@ static int pm_genpd_default_set_pstate(struct device *dev, unsigned int pstate)
  * @genpd: Domain to handle.
  * @pstate: pstate to set.
  */
-int pm_genpd_pstate(struct generic_pm_domain *genpd, unsigned int pstate)
+int genpd_pstate_set(struct generic_pm_domain *genpd,
+		unsigned int pstate,
+		bool try_only)
 {
 	struct gpd_link *link;
 	struct pm_domain_data *pdd;
-	int ret;
+	struct genpd_pstate_req *pr;
+	unsigned int pstate_req = 0;
+	bool pstate_increase = false;
+
+	int ret = 0;
 
 	/* If the domain is allready on the requested pstate, nothing to do.*/
 	if (pstate == genpd->pstate)
 		return 0;
-
+	
 	/* mmm.. invalid pstate.*/
-	if (pstate >= genpd->num_pstates)
+	if (pstate >= genpd->num_pstates) {
+		pr_warn("Pstate is out of range\n");
 		return -EINVAL;
+	}
 
-	/* Recursively change the pstate of parent domain
+
+	/* find out the biggest constraint for this genpd */
+	list_for_each_entry(pr, &genpd->preq_list, node)
+		if (pr->pstate > pstate_req)
+			pstate_req = pr->pstate;
+
+	/* Dont try to set a state lower than our constraint */
+	if (pstate < pstate_req) {
+		pr_warn("Pstate does not meet constraints\n");
+		return -EINVAL;
+	}
+
+
+	if (pstate > genpd->pstate)
+		pstate_increase = true;
+
+	/* Recursively change the pstate of master domain
 	 * if a map exists, use it to determine what the pstate of
 	 * the parent should be.
 	 */
 	list_for_each_entry(link, &genpd->slave_links, slave_node) {
 		unsigned int master_pstate = pstate;
-
-		if (!link->master)
-			continue;
+		bool do_state_change = false;
 
 		if (link->slave->pstates_map)
 			master_pstate = link->slave->pstates_map[pstate];
 
-		pm_genpd_pstate(link->master, master_pstate);
+		if (pstate_increase && (link->master->pstate < master_pstate))
+			do_state_change = true;
+
+		else if (!pstate_increase && (link->master->pstate > master_pstate))
+			do_state_change = true;
+
+		if (do_state_change)
+			ret = genpd_pstate_set(link->master, master_pstate, try_only);
+			if (ret)
+				goto exit;
 	}
 
 	/* Call the power domain set_pstate function if there is one */
-	if (genpd->set_pstate) {
+	if (!try_only && genpd->set_pstate) {
 		ret = genpd->set_pstate(genpd, pstate);
-		if (ret) {
-			pr_err("domain unable to change pstate\n");
-			goto err;
-		}
+		if (ret)
+			goto exit;
+
 		genpd->pstate = pstate;
 	}
 
-	/* Call the set pstate function for all devices on the domain */
-	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
-		if (!pdd->dev)
-			continue;
-		ret = pm_genpd_default_set_pstate(pdd->dev, pstate);
-		if (ret)
-			pr_warn("Device unable to change pstate\n");
+
+	/* Recursively change the pstate of slaves
+	 * if a map exists, use it to determine what the pstate of
+	 * the parent should be.
+	 */
+	list_for_each_entry(link, &genpd->master_links, master_node) {
+		unsigned int slave_pstate = pstate;
+		bool do_state_change = false;
+
+		if (link->master->pstates_map)
+			slave_pstate = link->master->pstates_map[pstate];
+	
+		if (pstate_increase && (link->slave->pstate < slave_pstate))
+			do_state_change = true;
+
+		if (!pstate_increase && (link->slave->pstate > slave_pstate))
+			do_state_change = true;
+
+		if (do_state_change)
+			ret = genpd_pstate_set(link->slave, slave_pstate, try_only);
+			if (ret)
+				goto exit;
 	}
 
-	return 0;
-err:
+	/* Call the set pstate function for all devices on the domain */
+	if (!try_only)
+		list_for_each_entry(pdd, &genpd->dev_list, list_node) {
+			if (!pdd->dev)
+				continue;
+
+			ret = pm_genpd_default_set_pstate(pdd->dev, pstate);
+			if (ret)
+				pr_warn("Device unable to change pstate\n");
+		}
+exit:
 	return ret;
+}
+
+int genpd_add_pstate_constraint(struct device *dev, unsigned int pstate)
+{
+	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+	struct genpd_pstate_req *pr;
+
+	/* Check if a request is present for this device */
+	list_for_each_entry(pr, &genpd->preq_list, node) {
+		if (pr->dev == dev)
+			return -EEXIST;
+	}
+	
+	pr = kzalloc(sizeof(*pr), GFP_KERNEL);
+	if (!pr)
+		return -ENOMEM;
+
+	list_add_tail(&pr->node, &genpd->preq_list);
+
+	return 0;
+}
+
+int genpd_rm_pstate_constraint(struct device *dev)
+{
+	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+	struct genpd_pstate_req *pr;
+
+	/* Check if a request is present for this device */
+	list_for_each_entry(pr, &genpd->preq_list, node) {
+		if (pr->dev == dev) {
+			list_del(&pr->node);
+			kfree(pr);
+		}
+	}
+	return 0;
 }
 
 /**
@@ -1856,11 +1945,29 @@ err:
 int pm_genpd_runtime_perf(struct device *dev, unsigned int pstate)
 {
 	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+	int ret;
 
 	if (!genpd)
 		return -EINVAL;
 
-	return pm_genpd_pstate(genpd, pstate);
+	if (pstate > 0)
+		ret = genpd_add_pstate_constraint(dev, pstate);
+		if (ret)
+			goto exit;
+	else
+		ret = genpd_rm_pstate_constraint(dev);
+		if (ret)
+			goto exit;
+
+	/* do a first test run..*/
+	ret = genpd_pstate_set(genpd, pstate, 1);
+	if (ret)
+		goto exit;
+
+	/* all ok, lets go! */
+	ret = genpd_pstate_set(genpd, pstate, 0);
+exit:
+	return ret;
 }
 
 /**
@@ -1880,6 +1987,7 @@ int pm_genpd_add_pstates(struct generic_pm_domain *genpd,
 
 	of_property_read_u32(np, "pstates", &of_pstates);
 	of_pstates_map = of_get_property(np, "pstate-map", &len);
+	
 
 	genpd->num_pstates = of_pstates;
 
@@ -1927,6 +2035,7 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	INIT_LIST_HEAD(&genpd->master_links);
 	INIT_LIST_HEAD(&genpd->slave_links);
 	INIT_LIST_HEAD(&genpd->dev_list);
+	INIT_LIST_HEAD(&genpd->preq_list);
 	genpd_lock_init(genpd);
 	genpd->gov = gov;
 	INIT_WORK(&genpd->power_off_work, genpd_power_off_work_fn);
@@ -1961,11 +2070,14 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.complete = pm_genpd_complete;
 	genpd->dev_ops.save_state = pm_genpd_default_save_state;
 	genpd->dev_ops.restore_state = pm_genpd_default_restore_state;
-
+	
 	if (genpd->flags & GENPD_FLAG_PM_CLK) {
 		genpd->dev_ops.stop = pm_clk_suspend;
 		genpd->dev_ops.start = pm_clk_resume;
 	}
+	
+	genpd->dev = kzalloc(sizeof(*genpd->dev), GFP_KERNEL);
+	device_register(genpd->dev);
 
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);

@@ -63,7 +63,8 @@ void apmu_cpu_powerdown_prepare(unsigned int pcpu, unsigned int pcluster)
 {
 	int cpu = pcpu_to_cpu(pcpu, pcluster);
 
-	if (cpu == 0)
+//	if (cpu == 0)
+	flush_cache_all();
 		return;
 
 	apmu_power_off(cpu);

@@ -43,6 +43,7 @@
 		cpu0_pd: a0@0 {
 			compatible = "arm,pd";
 			#power-domain-cells = <0>;
+			pstates = <6>;
 		};
 
 		cpu1_pd: a1@0 {

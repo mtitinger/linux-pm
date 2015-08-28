@@ -45,7 +45,14 @@ struct gpd_cpuidle_data {
 	struct cpuidle_state *idle_state;
 };
 
+struct genpd_pstate_req {
+	struct device *dev;
+	unsigned int pstate;
+	struct list_head node;
+};
+
 struct generic_pm_domain {
+	struct device *dev;
 	struct dev_pm_domain domain;	/* PM domain operations */
 	struct list_head gpd_list_node;	/* Node in the global PM domains list */
 	struct list_head master_links;	/* Links with PM domain as a master */
@@ -87,6 +94,7 @@ struct generic_pm_domain {
 	unsigned int pstate;
 	unsigned int num_pstates;
 	unsigned int *pstates_map;
+	struct list_head preq_list;	/* List of pstate constraints */
 };
 
 static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)

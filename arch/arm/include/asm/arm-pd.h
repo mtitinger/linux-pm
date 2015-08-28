@@ -15,6 +15,7 @@ struct of_arm_pd_ops {
 	int (*init)(struct device_node *dn, struct generic_pm_domain *d);
 	int (*power_on)(struct generic_pm_domain *d);
 	int (*power_off)(struct generic_pm_domain *d);
+	int (*set_pstate)(struct generic_pm_domain *domain, unsigned int pstate);
 };
 
 struct of_arm_pd_method {
