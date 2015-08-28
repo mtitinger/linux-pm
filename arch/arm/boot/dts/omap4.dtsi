@@ -41,13 +41,33 @@
 			clock-names = "cpu";
 
 			clock-latency = <300000>; /* From omap-cpufreq driver */
+			cpu-idle-states = <&CPU_SPC>;
+			power-domains = <&L2>;
 		};
 		cpu@1 {
 			compatible = "arm,cortex-a9";
 			device_type = "cpu";
 			next-level-cache = <&L2>;
 			reg = <0x1>;
+			cpu-idle-states = <&CPU_SPC>;
+			power-domains = <&L2>;
 		};
+
+                idle-states {
+                        CPU_SPC: spc {
+                                compatible = "arm,idle-state";
+                                entry-latency-us = <0 150>;
+                                exit-latency-us = <0 200>;
+                                min-residency-us = <0 2000>;
+                        };
+                        CLUSTER_SPC: l2_spc {
+                                compatible = "arm,idle-state";
+                                entry-latency-us = <0 1000>;
+                                exit-latency-us = <0 2000>;
+                                min-residency-us = <0 10000>;
+                        };
+                };
+
 	};
 
 	gic: interrupt-controller@48241000 {
@@ -64,6 +84,8 @@
 		reg = <0x48242000 0x1000>;
 		cache-unified;
 		cache-level = <2>;
+		#power-domain-cells = <0>;
+		power-domain-idle-states = <&CPU_SPC &CLUSTER_SPC>;		
 	};
 
 	local-timer@48240600 {

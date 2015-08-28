@@ -24,6 +24,12 @@
 #include "powerdomain.h"
 #include "pm.h"
 
+
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/pm_domain.h>
+
 u16 pm44xx_errata;
 
 struct power_state {
@@ -231,6 +237,22 @@ int __init omap4_pm_init_early(void)
 	return 0;
 }
 
+
+static int pd_power_on(struct generic_pm_domain *domain)
+{
+        printk("domain on\n");
+
+        return 0;
+}
+
+static int pd_power_off(struct generic_pm_domain *domain)
+{
+        printk("domain off\n");
+
+        return 0;
+}
+
+
 /**
  * omap4_pm_init - Init routine for OMAP4+ devices
  *
@@ -289,6 +311,20 @@ int __init omap4_pm_init(void)
 
 	if (cpu_is_omap44xx())
 		omap4_idle_init();
+
+
+	{
+	struct generic_pm_domain genpd;
+
+	/* Get the L2 cache node */
+	struct device_node *node = of_find_compatible_node(NULL, NULL, "arm,pl310-cache");
+
+	genpd.name = kstrdup("omap-cpu-domain", GFP_KERNEL);
+	genpd.power_on = pd_power_on;
+	genpd.power_off = pd_power_off;
+
+	pm_cpu_domain_init(&genpd, node);
+	}
 
 err2:
 	return ret;
