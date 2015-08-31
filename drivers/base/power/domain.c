@@ -1789,22 +1789,24 @@ static int pm_genpd_default_set_pstate(struct device *dev, unsigned int pstate)
 	return cb ? cb(dev, pstate) : 0;
 }
 
+
+#if 0
 /**
  * pm_genpd_runtime_perf - Set a pstate for a given power domain.
  * @genpd: Domain to handle.
  * @pstate: pstate to set.
  */
-int genpd_pstate_set(struct generic_pm_domain *genpd,
-		unsigned int pstate,
-		bool try_only)
+int 
+genpd_pstate_set(struct generic_pm_domain *genpd,
+			unsigned int pstate)
 {
-	struct gpd_link *link;
-	struct pm_domain_data *pdd;
 	struct genpd_pstate_req *pr;
+	struct pm_domain_data *pdd;
+	struct gpd_link *link;
 	unsigned int pstate_req = 0;
 	bool pstate_increase = false;
-
 	int ret = 0;
+	
 
 	/* If the domain is allready on the requested pstate, nothing to do.*/
 	if (pstate == genpd->pstate)
@@ -1816,7 +1818,6 @@ int genpd_pstate_set(struct generic_pm_domain *genpd,
 		return -EINVAL;
 	}
 
-
 	/* find out the biggest constraint for this genpd */
 	list_for_each_entry(pr, &genpd->preq_list, node)
 		if (pr->pstate > pstate_req)
@@ -1825,9 +1826,8 @@ int genpd_pstate_set(struct generic_pm_domain *genpd,
 	/* Dont try to set a state lower than our constraint */
 	if (pstate < pstate_req) {
 		pr_warn("Pstate does not meet constraints\n");
-		return -EINVAL;
+		return 0;
 	}
-
 
 	if (pstate > genpd->pstate)
 		pstate_increase = true;
@@ -1850,25 +1850,27 @@ int genpd_pstate_set(struct generic_pm_domain *genpd,
 			do_state_change = true;
 
 		if (do_state_change)
-			ret = genpd_pstate_set(link->master, master_pstate, try_only);
+			ret = genpd_pstate_set(link->master, master_pstate);
 			if (ret)
 				goto exit;
 	}
 
-	/* Call the power domain set_pstate function if there is one */
-	if (!try_only && genpd->set_pstate) {
+	if (genpd->set_pstate) {
 		ret = genpd->set_pstate(genpd, pstate);
+		if (!strcmp(genpd->name,"a3")) {
+			ret = -1;
+			goto exit;
+		}
 		if (ret)
 			goto exit;
-
-		genpd->pstate = pstate;
 	}
 
+	genpd->pstate = pstate;
 
 	/* Recursively change the pstate of slaves
-	 * if a map exists, use it to determine what the pstate of
-	 * the parent should be.
-	 */
+	* if a map exists, use it to determine what the pstate of
+	* the parent should be.
+	*/
 	list_for_each_entry(link, &genpd->master_links, master_node) {
 		unsigned int slave_pstate = pstate;
 		bool do_state_change = false;
@@ -1883,36 +1885,59 @@ int genpd_pstate_set(struct generic_pm_domain *genpd,
 			do_state_change = true;
 
 		if (do_state_change)
-			ret = genpd_pstate_set(link->slave, slave_pstate, try_only);
+			ret = genpd_pstate_set(link->slave, slave_pstate);
 			if (ret)
 				goto exit;
 	}
-
 	/* Call the set pstate function for all devices on the domain */
-	if (!try_only)
-		list_for_each_entry(pdd, &genpd->dev_list, list_node) {
-			if (!pdd->dev)
-				continue;
+	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
+		if (!pdd->dev)
+			continue;
 
-			ret = pm_genpd_default_set_pstate(pdd->dev, pstate);
-			if (ret)
-				pr_warn("Device unable to change pstate\n");
-		}
+		ret = pm_genpd_default_set_pstate(pdd->dev, pstate);
+		if (ret)
+			pr_warn("Device unable to change pstate\n");
+	}
+
 exit:
 	return ret;
 }
-
-int genpd_add_pstate_constraint(struct device *dev, unsigned int pstate)
+#endif
+struct generic_pm_domain *genpd_get_root_node(struct generic_pm_domain *genpd)
 {
-	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+	struct gpd_link *link;
+	struct generic_pm_domain *root;
+	
+	/*if this genpd is not a slave to anyone */
+	if (list_empty(&genpd->slave_links)) {
+		return genpd;
+	}
+
+	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+		root = genpd_get_root_node(link->master);
+		return root;
+	}
+
+	printk("WARN: root is null!\n");
+	return NULL;
+}
+
+
+int _genpd_add_pstate_constraint(struct generic_pm_domain *genpd,
+				struct device *dev,
+				unsigned int pstate)
+{
 	struct genpd_pstate_req *pr;
+
+	printk("AXEL %s %d genpd %s  pstate %d\n",
+		__func__, __LINE__, genpd->name, pstate);
 
 	/* Check if a request is present for this device */
 	list_for_each_entry(pr, &genpd->preq_list, node) {
 		if (pr->dev == dev)
 			return -EEXIST;
 	}
-	
+
 	pr = kzalloc(sizeof(*pr), GFP_KERNEL);
 	if (!pr)
 		return -ENOMEM;
@@ -1922,18 +1947,73 @@ int genpd_add_pstate_constraint(struct device *dev, unsigned int pstate)
 	return 0;
 }
 
-int genpd_rm_pstate_constraint(struct device *dev)
+int genpd_add_pstate_constraint(struct generic_pm_domain *genpd,
+				struct device *dev,
+				unsigned int pstate)
 {
-	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+	struct generic_pm_domain *root;
+	struct gpd_link *link;
+	int ret;
+
+	printk("AXEL %s %d\n", __func__, __LINE__);
+
+	root = genpd_get_root_node(genpd);
+	if (!root)
+		return -ENODEV;
+	/*
+	 * Starting from the root node,
+	 * Inform the slaves of the new constarint
+	 */
+	list_for_each_entry(link, &root->master_links, master_node) {
+		ret = _genpd_add_pstate_constraint(link->slave, dev, pstate);
+		if (ret)
+			goto exit;
+	}
+
+	return 0;
+exit:
+	return ret;
+}
+
+int _genpd_rm_pstate_constraint(struct generic_pm_domain *genpd,
+				struct device *dev)
+{
 	struct genpd_pstate_req *pr;
 
-	/* Check if a request is present for this device */
+	printk("AXEL %s %d\n", __func__, __LINE__);
+
 	list_for_each_entry(pr, &genpd->preq_list, node) {
 		if (pr->dev == dev) {
 			list_del(&pr->node);
 			kfree(pr);
+			return 0;
 		}
 	}
+
+	/* if we are here, it means we did not found the constraint for this dev */
+	return -ENODEV;
+}
+
+int genpd_rm_pstate_constraint(struct generic_pm_domain *genpd,
+				struct device *dev)
+{
+	struct generic_pm_domain *root;
+	struct gpd_link *link;
+	int ret;
+	printk("AXEL %s %d\n", __func__, __LINE__);
+
+	root = genpd_get_root_node(genpd);
+	
+	/*
+	 * Starting from the root node,
+	 * Inform the slaves of the new constarint
+	 */
+	list_for_each_entry(link, &root->slave_links, slave_node) {
+		ret = _genpd_rm_pstate_constraint(link->slave, dev);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -1947,25 +2027,24 @@ int pm_genpd_runtime_perf(struct device *dev, unsigned int pstate)
 	struct generic_pm_domain *genpd = dev_to_genpd(dev);
 	int ret;
 
+	printk("AXEL %s %d\n", __func__, __LINE__);
+
 	if (!genpd)
 		return -EINVAL;
 
-	if (pstate > 0)
-		ret = genpd_add_pstate_constraint(dev, pstate);
+	if (pstate == 0) {
+		ret = genpd_rm_pstate_constraint(genpd, dev);
 		if (ret)
 			goto exit;
-	else
-		ret = genpd_rm_pstate_constraint(dev);
+	} else {
+		ret = genpd_add_pstate_constraint(genpd, dev, pstate);
 		if (ret)
 			goto exit;
+	}
+	printk("AXEL %s %d\n", __func__, __LINE__);
 
-	/* do a first test run..*/
-	ret = genpd_pstate_set(genpd, pstate, 1);
-	if (ret)
-		goto exit;
+//	ret = genpd_pstate_update(genpd, pstate);
 
-	/* all ok, lets go! */
-	ret = genpd_pstate_set(genpd, pstate, 0);
 exit:
 	return ret;
 }

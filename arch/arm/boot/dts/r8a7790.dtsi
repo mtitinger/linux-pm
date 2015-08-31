@@ -39,19 +39,20 @@
 		vin2 = &vin2;
 		vin3 = &vin3;
 	};
+/*
 	pm-domains {
-		cpu0_pd: a0@0 {
+		cpu0_pd: aa0@0 {
 			compatible = "arm,pd";
 			#power-domain-cells = <0>;
 			pstates = <6>;
 		};
 
-		cpu1_pd: a1@0 {
+		cpu1_pd: aa1@0 {
 			compatible = "arm,pd";
 			#power-domain-cells = <0>;
 		};
 
-		cpu2_pd: a2@0 {
+		cpu2_pd: aa2@0 {
 			compatible = "arm,pd";
 			#power-domain-cells = <0>;
 		};
@@ -62,7 +63,7 @@
 		};
 
 	};
-
+*/
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -84,7 +85,7 @@
 					   < 700000 1000000>,
 					   < 350000 1000000>;
 
-			power-domains = <&cpu0_pd>;
+//			power-domains = <&cpu0_pd>;
 		};
 
 		cpu1: cpu@1 {
@@ -93,7 +94,7 @@
 			reg = <1>;
 			clock-frequency = <1300000000>;
 			cci-control-port = <&cci_control1>;
-			power-domains = <&cpu1_pd>;
+//			power-domains = <&cpu1_pd>;
 		};
 
 		cpu2: cpu@2 {
@@ -102,7 +103,7 @@
 			reg = <2>;
 			clock-frequency = <1300000000>;
 			cci-control-port = <&cci_control1>;
-			power-domains = <&cpu2_pd>;
+//			power-domains = <&cpu2_pd>;
 		};
 
 		cpu3: cpu@3 {
@@ -111,7 +112,7 @@
 			reg = <3>;
 			clock-frequency = <1300000000>;
 			cci-control-port = <&cci_control1>;
-			power-domains = <&cpu3_pd>;
+//			power-domains = <&cpu3_pd>;
 		};
 
 		cpu4: cpu@4 {

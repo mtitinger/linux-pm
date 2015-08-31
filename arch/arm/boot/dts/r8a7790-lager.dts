@@ -94,7 +94,7 @@
 		compatible = "fake,fake-driver";
 		name = "D2";
 		constraint = <30000>;
-		power-domains = <&pd_a4>;
+		power-domains = <&pd_a3>;
 
 	};
 
