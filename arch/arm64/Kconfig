@@ -250,6 +250,7 @@ config ARCH_VEXPRESS
 	select COMMON_CLK_VERSATILE
 	select POWER_RESET_VEXPRESS
 	select VEXPRESS_CONFIG
+	select PM_GENERIC_DOMAINS if PM
 	help
 	  This enables support for the ARMv8 software model (Versatile
 	  Express).
