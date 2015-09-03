@@ -134,6 +134,7 @@ asmlinkage void secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
+	struct device *cpu_dev;
 
 	/*
 	 * All kernel threads share the same mm context; grab a
@@ -183,6 +184,11 @@ asmlinkage void secondary_start_kernel(void)
 	local_dbg_enable();
 	local_irq_enable();
 	local_async_enable();
+
+	/* We are running, enable runtime PM for the CPU. */
+	cpu_dev = get_cpu_device(cpu);
+	if (cpu_dev)
+		pm_runtime_get_sync(cpu_dev);
 
 	/*
 	 * OK, it's off to the idle thread for us
@@ -291,6 +297,16 @@ void __cpu_die(unsigned int cpu)
 void cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
+	struct device *cpu_dev;
+
+	/*
+	 * We dont need the CPU device anymore.
+	 * Lets do this before IRQs are disabled to allow
+	 * runtime PM to suspend the domain as well.
+	 */
+	cpu_dev = get_cpu_device(cpu);
+	if (cpu_dev)
+		pm_runtime_put_sync(cpu_dev);
 
 	idle_task_exit();
 
