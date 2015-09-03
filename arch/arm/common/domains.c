@@ -20,7 +20,7 @@
 
 #include <asm/arm-pd.h>
 
-#define NAME_MAX 36
+#define GENPD_NAME_MAX 36
 
 struct arm_pm_domain {
 	struct generic_pm_domain genpd;
@@ -182,7 +182,7 @@ static int __init arm_domain_init(void)
 		}
 
 		/* Initialize rest of CPU PM domain specifics */
-		pd->genpd.name = kstrndup(np->name, NAME_MAX, GFP_KERNEL);
+		pd->genpd.name = kstrndup(np->name, GENPD_NAME_MAX, GFP_KERNEL);
 		pd->genpd.power_off = arm_pd_power_down;
 		pd->genpd.power_on = arm_pd_power_up;
 		pd->genpd.flags |= GENPD_FLAG_IRQ_SAFE;
