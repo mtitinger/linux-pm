@@ -68,7 +68,7 @@ static int fake_domain_domain_add(struct device_node *np, struct generic_pm_doma
         genpd->set_pstate               = fake_domain_set_pstate;
         genpd->attach_dev               = fake_domain_attach_dev;
         genpd->detach_dev               = fake_domain_detach_dev;
-	pm_genpd_init(genpd, &simple_qos_governor, false);
+	pm_genpd_init(genpd, &simple_qos_governor, NULL, 0, false);
 
 	__of_genpd_add_provider(np, fn, genpd);
 

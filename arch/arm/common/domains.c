@@ -188,7 +188,7 @@ static int __init arm_domain_init(void)
 		pd->genpd.flags |= GENPD_FLAG_IRQ_SAFE;
 
 		pr_debug("adding %s as generic power domain.\n", np->full_name);
-		pm_genpd_init(&pd->genpd, &simple_qos_governor, false);
+		pm_genpd_init(&pd->genpd, &simple_qos_governor, NULL, 0, false);
 		of_genpd_add_provider_simple(np, &pd->genpd);
 
 		count++;
