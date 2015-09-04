@@ -20,7 +20,6 @@
                                 __func__, __LINE__, ##__VA_ARGS__);
 
 
-
 struct fake_dev_data {
 	struct dev_pm_qos_request low_latency_req;
 	struct dentry *dbg_dir;
@@ -244,7 +243,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fake_dev_dbgfs_fops_max_off_time_us, fake_dev_dbgfs_get_
 DEFINE_SIMPLE_ATTRIBUTE(fake_dev_dbgfs_fops_pstate, fake_dev_dbgfs_get_pstate,
 		fake_dev_dbgfs_set_pstate, "%llu\n");
 
-extern int genpd_dev_pm_attach_force(struct device *dev, bool replace);
+// extern int genpd_dev_pm_attach_force(struct device *dev, bool replace);
 
 static int fake_dev_probe(struct platform_device *pdev)
 {
@@ -254,7 +253,6 @@ static int fake_dev_probe(struct platform_device *pdev)
 	char string[255];
 	int ret;
 
-	pr_fake("");
 	np = dev->of_node;
 
 	driver_data = devm_kzalloc(&pdev->dev, sizeof(*driver_data),
@@ -289,7 +287,11 @@ static int fake_dev_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, driver_data);
 
-	ret = genpd_dev_pm_attach_force(dev, true);
+	/* ask for irq_safe callbacks, so that we can add this fake driver
+	 * to the Cluster's PD */
+	pm_runtime_irq_safe(dev);
+
+	ret = genpd_dev_pm_attach(dev);
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);

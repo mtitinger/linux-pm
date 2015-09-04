@@ -123,20 +123,25 @@
 		A53_L2: l2-cache1 {
 			compatible = "cache";
 		};
+	};
 
-		pm-domains {
+	D1 {
+		compatible = "fake,fake-driver";
+		name = "D1";
+		constraint = <30000>;
+		power-domains = <&a53_pd>;
+	};
 
-			a57_pd: a57_pd@ {
-				compatible = "arm,pd";
-				#power-domain-cells = <0>;
-			};
-
-			a53_pd: a53_pd@ {
-				compatible = "arm,pd";
-				#power-domain-cells = <0>;
-			};
+	pm-domains {
+		a57_pd: a57_pd@ {
+			compatible = "arm,pd";
+			#power-domain-cells = <0>;
 		};
 
+		a53_pd: a53_pd@ {
+			compatible = "arm,pd";
+			#power-domain-cells = <0>;
+		};
 	};
 
 	pmu {
