@@ -45,6 +45,13 @@ struct gpd_cpuidle_data {
 	struct cpuidle_state *idle_state;
 };
 
+
+/* Arbitrary max number of devices registering a special
+ * retention state with the PD, to keep things simple.
+ */
+#define GENPD_POWER_STATES_MAX	12
+#define GENPD_MAX_NAME_SIZE	40
+
 struct genpd_power_state {
 	char *name;
 	s64 power_off_latency_ns;
@@ -80,7 +87,8 @@ struct generic_pm_domain {
 			   struct device *dev);
 	unsigned int flags;		/* Bit field of configs for genpd */
 
-	struct genpd_power_state *states;
+	struct genpd_power_state states[GENPD_POWER_STATES_MAX];
+
 	unsigned int state_count; /* number of states */
 	unsigned int state_idx; /* state that genpd will go to when off */
 
@@ -159,10 +167,12 @@ extern int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state);
 extern int pm_genpd_name_attach_cpuidle(const char *name, int state);
 extern int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd);
 extern int pm_genpd_name_detach_cpuidle(const char *name);
+extern int pm_genpd_insert_state(struct generic_pm_domain *genpd,
+			const struct genpd_power_state *state);
 extern void pm_genpd_init(struct generic_pm_domain *genpd,
-			  struct dev_power_governor *gov,
-			  const struct genpd_power_state *states,
-			  unsigned int state_count, bool is_off);
+			struct dev_power_governor *gov,
+			const struct genpd_power_state *states,
+			unsigned int state_count, bool is_off);
 
 extern int pm_genpd_poweron(struct generic_pm_domain *genpd);
 extern int pm_genpd_name_poweron(const char *domain_name);
