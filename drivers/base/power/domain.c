@@ -635,6 +635,14 @@ static int pm_genpd_runtime_resume(struct device *dev)
 		goto out;
 	}
 
+	/* The device probe may have missed calling pm_runtime_irq_safe.
+	 */
+	if (!dev->power.irq_safe && genpd->irq_safe) {
+		dev_err(dev, "trying to %s a non-irqsafe device in an irq-safe domain\n",
+		__func__);
+		return -EINVAL;
+	}
+
 	genpd_lock(genpd);
 	ret = __pm_genpd_poweron(genpd);
 	genpd_unlock(genpd);
@@ -1376,10 +1384,11 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(dev))
 		return -EINVAL;
 
-	if (genpd->irq_safe && !dev->power.irq_safe) {
-		dev_err(dev,
-			"PM Domain %s is IRQ safe; device has to IRQ safe.\n",
-			genpd->name);
+	/* Only issue a warning, runtime_irqsafe may be called later on
+	 * from the driver probe. */
+	if (genpd->irq_safe && !dev->power.irq_safe)
+		dev_warn(dev,
+			"Devices in an IRQ safe domain have to be IRQ safe.\n");
 		return -EINVAL;
 	}
 
