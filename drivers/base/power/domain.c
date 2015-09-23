@@ -1395,21 +1395,6 @@ static int genpd_alloc_states_data(struct generic_pm_domain *genpd,
 			st[i].power_off_latency_ns;
 	}
 
-	/*
-	 * Copy the latency values To keep compatibility with
-	 * platforms that are not converted to use the multiple states.
-	 * This will be removed once all platforms are converted to use
-	 * multiple states. note that non converted platforms will use the
-	 * default single off state.
-	 */
-	if (genpd->power_on_latency_ns != 0)
-		genpd->states[0].power_on_latency_ns =
-				genpd->power_on_latency_ns;
-
-	if (genpd->power_off_latency_ns != 0)
-		genpd->states[0].power_off_latency_ns =
-				genpd->power_off_latency_ns;
-
 	genpd->state_count = st_count;
 
 	/* to save memory, Name allocation will happen if debug is enabled */
