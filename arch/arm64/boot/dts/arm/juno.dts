@@ -47,7 +47,7 @@
 			};
 
 			CLUSTER_SLEEP_0: cluster-sleep-0 {
-				compatible = "arm,idle-state","arm,power-state";
+				compatible = "arm,power-state";
 				arm,psci-suspend-param = <0x1010000>;
 				local-timer-stop;
 				entry-latency-us = <800>;

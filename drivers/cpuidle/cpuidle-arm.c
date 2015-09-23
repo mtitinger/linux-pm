@@ -40,7 +40,6 @@ static int arm_enter_idle_state(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx)
 {
 	int ret;
-	struct device *cpu_dev = get_cpu_device(dev->cpu);
 
 	if (!idx) {
 		cpu_do_idle();
@@ -50,16 +49,47 @@ static int arm_enter_idle_state(struct cpuidle_device *dev,
 	ret = cpu_pm_enter();
 	if (!ret) {
 		/*
-		 * Notify runtime PM as well of this cpu powering down
-		 * TODO: Merge CPU_PM and runtime PM.
-		 */
-		RCU_NONIDLE(pm_runtime_put_sync(cpu_dev));
-
-		/*
 		 * Pass idle state index to cpu_suspend which in turn will
 		 * call the CPU ops suspend protocol with idle index as a
 		 * parameter.
 		 */
+		arm_cpuidle_suspend(idx);
+
+		cpu_pm_exit();
+	}
+
+	return ret ? -1 : idx;
+}
+
+/*
+ * arm_enter_power_state - delegate state trasition to genpd
+ *
+ * dev: cpuidle device
+ * drv: cpuidle driver
+ * idx: state index
+ *
+ * Called from the CPUidle framework to delegate a state transition
+ * to the generic domain. This will be a cluster poweroff state
+ * the Domain will chose to actually turn off the cluster based on
+ * the status of other CPUs, and devices and subdomains in the Cluster
+ * domain.
+*/
+static int arm_enter_power_state(struct cpuidle_device *dev,
+		struct cpuidle_driver *drv, int idx)
+{
+	int ret;
+	struct device *cpu_dev = get_cpu_device(dev->cpu);
+
+	BUG_ON(idx == 0);
+
+	ret = cpu_pm_enter();
+	if (!ret) {
+		/*
+		* Notify runtime PM as well of this cpu powering down
+		* TODO: Merge CPU_PM and runtime PM.
+		*/
+		RCU_NONIDLE(pm_runtime_put_sync(cpu_dev));
+
 		arm_cpuidle_suspend(idx);
 
 		RCU_NONIDLE(pm_runtime_get_sync(cpu_dev));
@@ -68,6 +98,7 @@ static int arm_enter_idle_state(struct cpuidle_device *dev,
 
 	return ret ? -1 : idx;
 }
+
 
 static struct cpuidle_driver arm_idle_driver = {
 	.name = "arm_idle",
@@ -90,9 +121,10 @@ static struct cpuidle_driver arm_idle_driver = {
 };
 
 static const struct of_device_id arm_idle_state_match[] __initconst = {
-	{ .compatible = "arm,idle-state",
-	  .data = arm_enter_idle_state },
-	{ },
+	{.compatible = "arm,idle-state",
+	 .data = arm_enter_idle_state},
+	{.compatible = "arm,power-state",
+	 .data = arm_enter_power_state},
 };
 
 /*
