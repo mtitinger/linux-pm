@@ -29,6 +29,16 @@ Optional properties:
    specified by this binding. More details about power domain specifier are
    available in the next section.
 
+ - power-states : a phandle of an idle-state that shall be soaked into a
+		  generic domain power state.
+   CPU domains: Deep c-states that match a cluster power-off can be delegated to the
+   generic power domain. Device other than CPUs may have register intermediate
+   power states in the same domain. The domain governor can do a good job in
+   electing a power state when the last cpu is powered off as devices in the
+   same genpd may register intermediate states.
+   Devices : a device may register an intermediate c-state matching a memory
+   retention feature for instance.
+
 Example:
 
 	power: power-controller@12340000 {
@@ -54,6 +64,25 @@ Example 2:
 		power-domains = <&parent 0>;
 		#power-domain-cells = <1>;
 	};
+
+Example 3:
+
+        pm-domains {
+                a57_pd: a57_pd@ {
+                        /* will have a57 platform ARM_PD_METHOD_OF_DECLARE*/
+                        compatible = "arm,pd","arm,cortex-a57";
+                        #power-domain-cells = <0>;
+                        power-states = <&CLUSTER_SLEEP_0>;
+                };
+
+                a53_pd: a53_pd@ {
+                        /* will have a a53 platform ARM_PD_METHOD_OF_DECLARE*/
+                        compatible = "arm,pd","arm,cortex-a53";
+                        #power-domain-cells = <0>;
+                        power-states = <&CLUSTER_SLEEP_0>;
+                };
+        };
+
 
 The nodes above define two power controllers: 'parent' and 'child'.
 Domains created by the 'child' power controller are subdomains of '0' power

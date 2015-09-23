@@ -302,6 +302,9 @@ struct generic_pm_domain *__of_genpd_xlate_onecell(
 					struct of_phandle_args *genpdspec,
 					void *data);
 
+int of_genpd_device_parse_states(struct device_node *np,
+	struct generic_pm_domain *genpd);
+
 int genpd_dev_pm_attach(struct device *dev);
 #else /* !CONFIG_PM_GENERIC_DOMAINS_OF */
 static inline int __of_genpd_add_provider(struct device_node *np,

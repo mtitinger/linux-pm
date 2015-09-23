@@ -270,7 +270,8 @@ follows:
 	- compatible
 		Usage: Required
 		Value type: <stringlist>
-		Definition: Must be "arm,idle-state".
+		Definition: Must be "arm,idle-state",
+			or "arm,power-state" (see section 5)
 
 	- local-timer-stop
 		Usage: See definition
@@ -680,7 +681,23 @@ cpus {
 };
 
 ===========================================
-5 - References
+5 - power state
+===========================================
+
+Device in a generic power domain may expose an intermediate retention
+state that can be opted to by the domain governor when the last-man
+CPU is powered off. Those power-states will not be entered by the
+cpuidle.ops based on a state index, but instead can be elected by the
+domain governor and entered to by the generic domain.
+
+ - compatible
+                Usage: Required
+                Value type: <stringlist>
+                Definition: Must be "arm,power-state".
+
+
+===========================================
+6 - References
 ===========================================
 
 [1] ARM Linux Kernel documentation - CPUs bindings
