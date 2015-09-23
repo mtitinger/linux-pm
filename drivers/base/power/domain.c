@@ -2468,6 +2468,96 @@ static const struct file_operations pm_genpd_summary_fops = {
 	.release = single_release,
 };
 
+static int pm_genpd_states_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd;
+
+	seq_puts(s,
+		 "\n  Domain             State name        Enter + Exit = Min_off_on (ns)\n");
+	seq_puts(s,
+		 "-----------------------------------------------------------------------\n");
+
+	list_for_each_entry(genpd, &gpd_list, gpd_list_node) {
+
+		int i;
+
+		for (i = 0; i < genpd->state_count; i++) {
+			seq_printf(s, "%-20s %-20s %lld+%lld=%lld\n",
+				   genpd->name,
+				   genpd->states[i].name,
+				   genpd->states[i].power_on_latency_ns,
+				   genpd->states[i].power_off_latency_ns,
+				   genpd->states[i].power_off_latency_ns
+				   + genpd->states[i].power_on_latency_ns);
+		}
+
+	}
+
+	seq_puts(s, "\n");
+
+	return 0;
+}
+
+static int pm_genpd_states_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pm_genpd_states_show, NULL);
+}
+
+static const struct file_operations pm_genpd_states_fops = {
+	.open = pm_genpd_states_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int pm_genpd_timing_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd;
+
+	seq_puts(s, "\n    Domain Devices, Timings in ns\n");
+	seq_puts(s,
+		 "                       Stop/Start Save/Restore, Effective\n");
+	seq_puts(s,
+		 "----------------------------------------------------  ---\n");
+
+	list_for_each_entry(genpd, &gpd_list, gpd_list_node) {
+		struct pm_domain_data *pm_data;
+
+		seq_printf(s, "%-30s", genpd->name);
+
+		list_for_each_entry(pm_data, &genpd->dev_list, list_node) {
+			struct gpd_timing_data *td = &to_gpd_data(pm_data)->td;
+
+			if (!pm_data->dev->of_node)
+				continue;
+
+			seq_printf(s,
+				   "\n    %-20s %-6lld/%-6lld %-6lld/%-6lld,%lld %s%s",
+				   pm_data->dev->of_node->full_name,
+				   td->stop_latency_ns, td->start_latency_ns,
+				   td->save_state_latency_ns,
+				   td->restore_state_latency_ns,
+				   td->effective_constraint_ns,
+				   td->cached_stop_ok ? "(cached stop) " : "",
+				   td->constraint_changed ? "(changed)" : "");
+		}
+		seq_puts(s, "\n");
+	}
+	return 0;
+}
+
+static int pm_genpd_timing_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pm_genpd_timing_show, NULL);
+}
+
+static const struct file_operations pm_genpd_timing_fops = {
+	.open = pm_genpd_timing_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static int __init pm_genpd_debug_init(void)
 {
 	struct dentry *d;
@@ -2477,8 +2567,21 @@ static int __init pm_genpd_debug_init(void)
 	if (!pm_genpd_debugfs_dir)
 		return -ENOMEM;
 
-	d = debugfs_create_file("pm_genpd_summary", S_IRUGO,
-			pm_genpd_debugfs_dir, NULL, &pm_genpd_summary_fops);
+	d = debugfs_create_file("summary", S_IRUGO,
+				pm_genpd_debugfs_dir, NULL,
+				&pm_genpd_summary_fops);
+	if (!d)
+		return -ENOMEM;
+
+	d = debugfs_create_file("states", S_IRUGO,
+				pm_genpd_debugfs_dir, NULL,
+				&pm_genpd_states_fops);
+	if (!d)
+		return -ENOMEM;
+
+	d = debugfs_create_file("timings", S_IRUGO,
+				pm_genpd_debugfs_dir, NULL,
+				&pm_genpd_timing_fops);
 	if (!d)
 		return -ENOMEM;
 
