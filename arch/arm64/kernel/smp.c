@@ -53,6 +53,8 @@
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
 
+#include <linux/pm_runtime.h>
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
 
