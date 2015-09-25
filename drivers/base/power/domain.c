@@ -21,6 +21,8 @@
 #include <linux/export.h>
 #include <linux/sort.h>
 
+#include <trace/events/power.h>
+
 #define GENPD_RETRY_MAX_MS	250		/* Approximate */
 
 #define GENPD_DEV_CALLBACK(genpd, type, callback, dev)		\
@@ -334,6 +336,9 @@ static int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 
  out:
 	genpd->status = GPD_STATE_ACTIVE;
+
+	trace_power_domain_target(genpd->name, genpd->state_idx,
+				genpd->states[genpd->state_idx].name);
 	return 0;
 
  err:
