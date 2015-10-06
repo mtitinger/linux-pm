@@ -47,7 +47,7 @@
 			};
 
 			CLUSTER_SLEEP_0: cluster-sleep-0 {
-				compatible = "arm,idle-state";
+				compatible = "arm,idle-state","arm,power-state";
 				arm,psci-suspend-param = <0x1010000>;
 				local-timer-stop;
 				entry-latency-us = <800>;
@@ -128,13 +128,17 @@
 	pm-domains {
 
 		a57_pd: a57_pd@ {
-			compatible = "arm,pd";
+			/* will have the a53 platform ARM_PD_METHOD_OF_DECLARE*/
+			compatible = "arm,pd","arm,cortex-a57";
 			#power-domain-cells = <0>;
+			power-states = <&CLUSTER_SLEEP_0>;
 		};
 
 		a53_pd: a53_pd@ {
-			compatible = "arm,pd";
+			/* will have the a53 platform ARM_PD_METHOD_OF_DECLARE*/
+			compatible = "arm,pd","arm,cortex-a57";
 			#power-domain-cells = <0>;
+			power-states = <&CLUSTER_SLEEP_0>;
 		};
 	};
 

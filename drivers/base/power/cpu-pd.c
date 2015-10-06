@@ -163,6 +163,11 @@ int of_register_cpu_pm_domain(struct device_node *dn,
 	pm_genpd_init(pd->genpd, &simple_qos_governor, false);
 	of_genpd_add_provider_simple(dn, pd->genpd);
 
+	/* if a cpuidle-state is declared in this domain node, it will
+	 * be the domain's job to enter/exit this state, if the device
+	 * subdomain constraints are compatible */
+	of_genpd_device_parse_states(dn, &pd->genpd);
+
 	/* Attach the CPUs to the CPU PM domain */
 	return of_pm_domain_attach_cpus();
 }
