@@ -54,6 +54,24 @@
 				exit-latency-us = <700>;
 				min-residency-us = <2500>;
 			};
+
+			/* an hypothetic, sligthly faster to resume retention
+			 state contributed by the D1 fake device.
+			*/
+			D1_RETENTION: d1-retention {
+				compatible = "arm,power-state";
+				/*leave the psci param, for demo/testing:
+				* the psci cpuidle driver will not currently
+				* understand that a c-state shall not have it's
+				* table entry with a firmware command.
+				* the actual .power_on/off would be registered
+				* by the DECLARE macro for a given domain*/
+				arm,psci-suspend-param = <0x1010000>;
+				local-timer-stop;
+				entry-latency-us = <800>;
+				exit-latency-us = <200>;
+				min-residency-us = <2500>;
+			};
 		};
 
 		A57_0: cpu@0 {
@@ -123,6 +141,14 @@
 		A53_L2: l2-cache1 {
 			compatible = "cache";
 		};
+	};
+
+	D1 {
+		compatible = "fake,fake-driver";
+		name = "D1";
+		constraint = <22000>;
+		power-domains = <&a57_pd>;
+		power-states =<&D1_RETENTION>;
 	};
 
 	pm-domains {
